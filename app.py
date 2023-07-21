@@ -245,3 +245,50 @@ class Admin_Session(Session):
 
 # Create user instance for user session
 user = User_Session()
+
+# Add sources for filtering
+@app.route("/upload_sources", methods=['POST'])
+def upload_sources():
+    """Add sources for filtering the responses"""
+    uploadStatus = {}
+    try:
+        user.sources.append(request.json['source'])
+        print(user.sources)
+        uploadStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't upload source {e}")
+        uploadStatus['status'] = 0
+
+    return jsonify(uploadStatus)
+
+@app.route("/remove_sources", methods=['POST'])
+def remove_sources():
+    """Remove sources if user disabled the source"""
+    removeStatus = {}
+    try:
+        user.sources.remove(request.json['source'])
+        print(user.sources)
+        removeStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't remove source {e}")
+        removeStatus['status'] = 0
+
+    return jsonify(removeStatus)
+
+@app.route("/select_llm", methods=['POST'])
+def select_query_llm():
+    """(ONLY FOR PITCHING) Select the LLM to use for querying and summarising"""
+    selectionStatus = {}
+    try:
+        user.selected_llm = request.json['selected_llm']
+        print(user.selected_llm)
+        selectionStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't set preferred llm {e}")
+        selectionStatus['status'] = 0
+
+    return jsonify(selectionStatus)
+
