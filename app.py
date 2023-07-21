@@ -40,6 +40,22 @@ CHROMA_HOST = os.getenv('CHROMA_HOST')
 CHROMA_PORT = os.getenv('CHROMA_PORT')
 COLLECTION_NAME=os.getenv('COLLECTION_NAME')
 
+# Setup chroma settings
+chroma_client_settings = Settings(
+        chroma_api_impl="rest",
+        chroma_server_host=CHROMA_HOST,
+        chroma_server_http_port=CHROMA_PORT,
+    )
+
+# Set up chroma client settings
+chroma_client = chromadb.Client(settings=chroma_client_settings)
+print("ChromaDB's heartbeat: ", chroma_client.heartbeat())
+
+# Set up Chroma collection
+collection = chroma_client.get_collection(name=COLLECTION_NAME,
+                                        embedding_function=chromadb_embeddings)
+print("collection counts: ", collection.count())
+
 class User_Session():
     """Class to manage one user session on the chatbot platform"""
     def __init__(self):
