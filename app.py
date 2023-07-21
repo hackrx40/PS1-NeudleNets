@@ -23,6 +23,7 @@ from chromadb.utils import embedding_functions
 # Other imports
 import os
 from dotenv import load_dotenv, find_dotenv
+from io import BytesIO
 
 # Set up Flask App
 app = Flask(__name__)
@@ -338,6 +339,48 @@ def feedback():
 
     except Exception as e:
         print(f"Couldn't upload query {e}")
+        uploadStatus['status'] = 0
+
+    return jsonify(uploadStatus)
+
+# For admin page
+@app.route("/admin_vectordb", methods=['POST'])
+def admin_vectordb():
+    """Function to add private knowledge base to the vector database"""
+    admin = Admin_Session()
+
+    uploadStatus = {}
+    try:
+        print('Started...')
+        admin.file = request.files['file']
+        admin.fileName = admin.file.filename
+        print(f"Uploading file {admin.fileName}")
+
+        file_bytes = admin.file.read()
+        fileObj = BytesIO(file_bytes)
+        print("converted to fileobj")
+        print(type(fileObj))
+        fileObj.seek(0)
+        admin.fileContent = fileObj.read()
+        
+        print("Read from fileobj")
+        print(type(admin.fileContent))
+        print(admin.fileContent)
+
+        admin.fileContent = str(admin.fileContent)
+        print("converted to string ig")
+        print(type(admin.fileContent))
+
+        documents = admin.create_document()
+        
+        # Add documents to the vector database
+        for doc in documents:
+            admin.add_document_to_vectordb(doc)
+
+        uploadStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't upload document {e}")
         uploadStatus['status'] = 0
 
     return jsonify(uploadStatus)
