@@ -19,17 +19,18 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
 # Other imports
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 
 app = Flask(__name__)
 CORS(app, origins='*')
 
 print("loading environment variables...")
-load_dotenv()
+_ = load_dotenv(find_dotenv()) # read local .env file
 
 print("loading chromadb emeddings...")
 chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
 print("loading langchain emeddings...")
 langchain_embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
