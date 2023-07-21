@@ -6,6 +6,7 @@ from flask_cors import CORS
 # Langchain imports
 from langchain.embeddings import TensorflowHubEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document
 from langchain.chains import ConversationalRetrievalChain
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores.chroma import Chroma
@@ -32,7 +33,7 @@ chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(m
 print("loading langchain emeddings...")
 langchain_embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
-class user_Session():
+class User_Session():
     """Class to manage one user session on the chatbot platform"""
     def __init__(self):
         self.selected_llm ="OpenAI"
@@ -82,16 +83,18 @@ class user_Session():
         return self.response, self.source_cites
     
     def update_rating(self):
-        # get the document with ids == self.source_ids[0] :: this returns a dictionary
+        """Update the rating of a particular doc retrieved"""
+        # Get the document with ids == self.source_ids[0] :: this returns a dictionary
         doc = self.vectordb.get(ids=[self.source_id])
         
-        # get the current rating of the article
+        # Get the current rating of the article
         curr_rating =doc['metadatas'][0]['rating']
-        # update the rating
+
+        # Update the rating
         new_rating = (curr_rating+self.rating)/2
         doc['metadatas'][0]['rating'] = new_rating
         
-        # create a langchain document from dictionary
+        # Create a langchain document from dictionary
         document =Document(
             ids=doc['ids'][0],
             page_content=doc['documents'][0],
@@ -103,5 +106,5 @@ class user_Session():
             }
         )
 
-        # update the vectordb
-        vectordb.update_document(self.source_id,document)
+        # Update the vectordb
+        self.vectordb.update_document(self.source_id,document)
