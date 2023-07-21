@@ -1,6 +1,6 @@
 flask
-langchain
-chromadb
+langchain==0.0.237
+chromadb == 0.4.2
 sentence-transformers
 flask_cors
 python-dotenv
