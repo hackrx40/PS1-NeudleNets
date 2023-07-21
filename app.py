@@ -56,6 +56,12 @@ collection = chroma_client.get_collection(name=COLLECTION_NAME,
                                         embedding_function=chromadb_embeddings)
 print("collection counts: ", collection.count())
 
+# Set up langchain vectorDB
+vectordb = Chroma(client=chroma_client,client_settings=chroma_client_settings,
+                  collection_name=COLLECTION_NAME,
+                  embedding_function=langchain_embeddings)
+print("set up vectordb")
+
 class User_Session():
     """Class to manage one user session on the chatbot platform"""
     def __init__(self):
