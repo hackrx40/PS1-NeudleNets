@@ -62,33 +62,70 @@ vectordb = Chroma(client=chroma_client,client_settings=chroma_client_settings,
                   embedding_function=langchain_embeddings)
 print("set up vectordb")
 
-class User_Session():
+class Session:
+    """Template class for a session with the chatbot"""
+    def __init__(self):
+        self.chroma_client = chroma_client
+        self.collection = collection
+        self.vectordb = vectordb
+
+class User_Session(Session):
     """Class to manage one user session on the chatbot platform"""
     def __init__(self):
         self.selected_llm ="OpenAI"
-        self.query =""
-        self.sources =[]
+        self.query = ""
+        self.sources = []
         self.chat_history = []
-        self.responses=[]
-        self.source_ids=[]
-        self.source_cites=[]
-        self.rating=5
+        self.responses = []
+        self.source_ids = []
+        self.source_cites = []
+        self.rating = 5 # initalise every content with 5 star
 
     def get_llm(self):
-        """Load the LLM from langchain"""
-        llm = OpenAI()
+        """Load the LLM from langchain; default LLM is OpenAI"""
+        if self.selected_llm == "Google-Flan-T5-XXL":
+            llm = HuggingFaceHub(repo_id='google/flan-t5-xxl', model_kwargs={"temperature":0.1, "max_new_tokens":1180})
+        elif self.selected_llm == "OpenAssistant":
+            llm = HuggingFaceHub(repo_id="OpenAssistant/oasst-sft-1-pythia-12b", model_kwargs={"temperature":0.1, "max_new_tokens":768})
+        elif self.selected_llm == "Falcon-7b-instruct":
+            llm = HuggingFaceHub(repo_id="tiiuae/falcon-7b-instruct", model_kwargs={"temperature":0.1, "max_new_tokens":256})
+        else:
+            llm = OpenAI()
         return llm
-
 
     def response_from_llm(self):
         """Generate response from the LLM loaded"""
         llm = self.get_llm()
-        self.response =""
+        self.response = ""
         self.source_id = ""
         self.source_cites = []
-        self.chat_history=[]
+        self.chat_history = []
         
+        # First we get the best response out of all the sources based on the
+        # selected sources
+        # We need to create the search_kwargs filter
+        # We create the or_filter from all the sources
+        or_filters =[]
+        for source in self.sources:
+            source_dict = {'source':source}
+            or_filters.append(source_dict)
         
+        # Define search kwargs
+        search_kwargs = {
+                'k':1,
+                'filter':{
+                    "$and": [
+                        {
+                            "$or": or_filters
+                        },
+                        {
+                            "rating": {'$gt': 4}
+                        }
+                    ]
+                }
+            }
+
+        # Define retrieval chain
         qa = ConversationalRetrievalChain.from_llm(llm = llm,
                                     retriever = self.vectordb.as_retriever(),
                                     return_source_documents = True)
@@ -113,14 +150,16 @@ class User_Session():
     
     def update_rating(self):
         """Update the rating of a particular doc retrieved"""
-        # Get the document with ids == self.source_ids[0] :: this returns a dictionary
+        
+        # Get the document with
+        # ids == self.source_ids[0] :: this returns a dictionary
         doc = self.vectordb.get(ids=[self.source_id])
         
         # Get the current rating of the article
         curr_rating =doc['metadatas'][0]['rating']
 
         # Update the rating
-        new_rating = (curr_rating+self.rating)/2
+        new_rating = (curr_rating+self.rating) / 2
         doc['metadatas'][0]['rating'] = new_rating
         
         # Create a langchain document from dictionary
@@ -136,4 +175,5 @@ class User_Session():
         )
 
         # Update the vectordb
-        self.vectordb.update_document(self.source_id,document)
+        self.vectordb.update_document(self.source_id, document)
+
