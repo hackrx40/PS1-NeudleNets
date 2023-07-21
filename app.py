@@ -19,6 +19,7 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
 # Other imports
+import os
 from dotenv import load_dotenv, find_dotenv
 
 
@@ -33,6 +34,11 @@ chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(m
 
 print("loading langchain emeddings...")
 langchain_embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+print("loading AWS deployed ChromaDB Stack environment variables...")
+CHROMA_HOST = os.getenv('CHROMA_HOST')
+CHROMA_PORT = os.getenv('CHROMA_PORT')
+COLLECTION_NAME=os.getenv('COLLECTION_NAME')
 
 class User_Session():
     """Class to manage one user session on the chatbot platform"""
