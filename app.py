@@ -323,4 +323,22 @@ def run_medibot():
             'source_cites':source_cites
         })
     
-    
+@app.route("/feedback", methods=['POST'])
+def feedback():
+    """
+        Function to take user feedback to update the retrieved information's
+        ranking
+    """
+    uploadStatus = {}
+    try:
+        user.rating = request.json['rating']
+        print(user.rating)
+        user.update_rating()
+        uploadStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't upload query {e}")
+        uploadStatus['status'] = 0
+
+    return jsonify(uploadStatus)
+
