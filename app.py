@@ -228,3 +228,5 @@ class Admin_Session(Session):
         )
         print("The count of the collection in ChromaDB: ", collection.count())
 
+# Create user instance for user session
+user = User_Session()
