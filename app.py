@@ -292,3 +292,18 @@ def select_query_llm():
 
     return jsonify(selectionStatus)
 
+@app.route("/patient_query", methods=['POST'])
+def patient_query():
+    """Endpoint to upload the patient query"""
+    uploadStatus = {}
+    try:
+        user.query = request.json['query']
+        print(user.query)
+        uploadStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't upload query {e}")
+        uploadStatus['status'] = 0
+
+    return jsonify(uploadStatus)
+
