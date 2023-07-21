@@ -307,3 +307,20 @@ def patient_query():
 
     return jsonify(uploadStatus)
 
+@app.route("/run_medibot", methods=['GET'])
+def run_medibot():
+    """Generate response for the patient query."""
+    response = ""
+    if len(user.sources) == 0:
+        response = 'No sources selected'
+        print(response)
+        return jsonify({'response': response})
+    else:
+        response, source_cites = user.response_from_llm()
+        print(response)
+        return jsonify({
+            'response' : response,
+            'source_cites':source_cites
+        })
+    
+    
