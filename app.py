@@ -9,10 +9,11 @@ from flask_cors import CORS
 from langchain.embeddings import TensorflowHubEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.vectorstores.chroma import Chroma
 from langchain import OpenAI
+from langchain.prompts import PromptTemplate
 from langchain import HuggingFaceHub
 
 # ChromaDB imports
@@ -24,6 +25,7 @@ from chromadb.utils import embedding_functions
 import os
 from dotenv import load_dotenv, find_dotenv
 from io import BytesIO
+import pickle
 
 # Set up Flask App
 app = Flask(__name__)
@@ -69,6 +71,15 @@ vectordb = Chroma(client=chroma_client,client_settings=chroma_client_settings,
                   embedding_function=langchain_embeddings)
 print("set up vectordb")
 
+# Initialise some important lists
+trigger_words = ["suicide", "kill myself", "end my life", "can't go on",
+                 "no reason to live"]
+diseases_list =['coronavirus', 'influenza', 'common cold',
+                'respiratory syncytial virus', 'pneumonia',
+                'severe acute respiratory syndrome',
+                'respiratory tract infections',
+                'middle east respiratory syndrome']
+
 class Session:
     """Template class for a session with the chatbot"""
     def __init__(self):
@@ -79,12 +90,17 @@ class Session:
 class User_Session(Session):
     """Class to manage one user session on the chatbot platform"""
     def __init__(self):
+        Session.__init__(self)
         self.selected_llm ="OpenAI"
+        self.selected_nlp=False
         self.query = ""
+        self.query_intent=""
+        self.query_disease=""
+        self.validDisease=False
         self.sources = []
         self.chat_history = []
         self.responses = []
-        self.source_ids = []
+        self.source_ids = ""
         self.source_cites = []
         self.rating = 5 # initalise every content with 5 star
 
@@ -105,6 +121,76 @@ class User_Session(Session):
         else:
             llm = OpenAI()
         return llm
+    
+    def isValidDisease(self):
+        """Check if disease in diseases list"""
+        # print("inside isValidDisease")
+        if (self.query_disease in diseases_list) or ("No disease".lower() in self.query_disease.lower()):
+            self.validDisease = True
+        elif self.query_disease not in diseases_list:
+            print("checking mapping...")
+
+            # Map it with any disease from disease list
+            llm = self.get_llm()
+            mappingTemplate = """The following is a disease given along with a \
+list of diseases. Give answer as ONLY True or False if the disease maps to any \
+of the disease from the list
+            disease: {disease}
+            disease list: {diseases_list} 
+            """
+            mappingPrompt = PromptTemplate(input_variables=['disease','diseases_list'], template=mappingTemplate)
+            mappingChain = LLMChain(llm=llm, prompt=mappingPrompt)
+            response = mappingChain.run(disease=self.query_disease,
+                                        diseases_list=diseases_list)
+            if "True" in response:
+                self.validDisease = True
+        print(self.validDisease)
+
+    # Intent using LLM
+    def get_llm_intent(self):
+        """Determine the intent of the user's prompt using LLM"""
+        llm = self.get_llm()
+        template = "The following is given query from a user. Apply NLP and identify the intent only from the following choices: ['Symptom Inquiry', 'Treatment Enquiry', 'Medical Information', 'Medical Advice', 'Non-medical queries']. User query: {query}"
+        intentPrompt = PromptTemplate(input_variables=['query'],
+                                      template=template)
+        IntentChain = LLMChain(llm =llm, prompt=intentPrompt)
+        self.query_intent = IntentChain.run(query = self.query)
+        self.query_intent = self.query_intent[2:]
+        print(self.query_intent)
+
+    # Intent using custom trained model
+    def get_nlp_intent(self):
+        """Determine the intent of the user's prompt using custom made model"""
+        with open('custom_trained_models\intentClassifierModel0.pkl','rb') as file:
+            loaded_model = pickle.load(file)
+
+        self.query_intent = loaded_model.predict([self.query])[0]
+        print(self.query_intent)
+
+    # Disease determination using LLM
+    def get_llm_disease(self):
+        """Extract the disease in the user's prompt using LLM"""
+        llm = self.get_llm()
+        template ="From the given query, identify if it mentions any disease and return only that disease. If no disease is mentioned only say 'No disease' exactly. User query: {query}"
+
+        diseasePrompt = PromptTemplate(input_variables=['query'],
+                                       template=template)
+        diseaseChain = LLMChain(llm =llm, prompt=diseasePrompt)
+        self.query_disease = diseaseChain.run(query = self.query)
+        self.query_disease = self.query_disease[2:]
+        # print("Moving to isValidDisease")
+        self.isValidDisease()
+        print(self.query_disease)
+
+    # Disease using custom trained model
+    def get_nlp_disease(self):
+        """Extract disease using custom trained model"""
+        with open('custom_trained_models\extractDiseaseModel0.pkl','rb') as file:
+            loaded_model = pickle.load(file)
+
+        self.query_disease = loaded_model.predict([self.query])[0]
+        self.isValidDisease()
+        print(self.query_disease)
 
     def response_from_llm(self):
         """Generate response from the LLM loaded"""
@@ -137,15 +223,33 @@ class User_Session(Session):
                     ]
                 }
             }
+        
+        # Define template for taking into consideration query_intent
+        intentTemplate = '''Given the following conversation, a follow up \
+question, and its intent, rephrase the follow up question to be a standalone question.
+        Chat History:
+        {chat_history}
+        Follow Up Input: {question}
+        Question Intent: {intent}
+        Standalone question:'''
+        
+        # define promptTemplate
+        prompt = PromptTemplate(input_variables=['chat_history',
+                                                 'question','intent'],
+                                                 template = intentTemplate)
 
         # Define retrieval chain
         qa = ConversationalRetrievalChain.from_llm(llm = llm,
                                     retriever = self.vectordb.as_retriever(),
-                                    return_source_documents = True)
+                                    return_source_documents = True,
+                                    condense_question_prompt=prompt)
 
         # Get the response
-        result = qa({'question':self.query, "chat_history":self.chat_history})
+        result = qa({'question':self.query, "chat_history":self.chat_history,
+                     "intent":self.query_intent})
         self.response = result['answer']
+        if self.response == " I don't know":
+            return self.response, "None"
         target_document = result['source_documents'][0]
         print(target_document.metadata['source'])
 
@@ -194,7 +298,8 @@ class User_Session(Session):
 
         # Update the vectordb
         self.vectordb.update_document(self.source_id, document)
-
+        #print(len(self.vectordb.get(where={"rating": {'$gt': 4}})['ids']))
+        
 class Admin_Session(Session):
     """Child class to manage Admin Sessions on chatbot"""
     def __init__(self):
@@ -293,6 +398,22 @@ def select_query_llm():
 
     return jsonify(selectionStatus)
 
+# Select whether to perform Intent Entityt Classification using NLP or not
+@app.route("/select_nlp", methods=['POST'])
+def select_nlp():
+    """Choose if NLP model to use to perform intent classification"""
+    nlpStatus = {}
+    try:
+        user.selected_nlp = True
+        print(user.selected_nlp)
+        nlpStatus['status'] = 1
+
+    except Exception as e:
+        print(f"Couldn't set for nlp method {e}")
+        nlpStatus['status'] = 0
+
+    return jsonify(nlpStatus)
+
 @app.route("/patient_query", methods=['POST'])
 def patient_query():
     """Endpoint to upload the patient query"""
@@ -300,6 +421,16 @@ def patient_query():
     try:
         user.query = request.json['query']
         print(user.query)
+        # Get the intent from the query
+        print(user.selected_nlp)
+        if(user.selected_nlp == True):
+            user.get_nlp_intent()
+            if user.query_intent != "Non-medical Queries":
+                user.get_nlp_disease()
+        else:
+            user.get_llm_intent()
+            if user.query_intent != "Non-medical Queries":
+                user.get_llm_disease()
         uploadStatus['status'] = 1
 
     except Exception as e:
@@ -312,17 +443,35 @@ def patient_query():
 def run_medibot():
     """Generate response for the patient query."""
     response = ""
-    if len(user.sources) == 0:
+
+    # Check for intent
+    print(user.query_intent)
+    if user.query_intent == "Non-medical queries":
+        response = "This is a non-medical query"
+        source_cites = "None"
+    elif user.validDisease == False:
+        response = "This disease is not currently in our database"
+        source_cites = "None"
+    # Check for trigger words
+    elif any(word in user.query.lower() for word in trigger_words):
+        response = "I'm really sorry that you're feeling this way, but I'm unable to provide the help that you need. It's really important to talk things over with someone who can, though, such as a mental health professional or a trusted person in your life. Contact: Helpline KIRAN (1800-599-0019)"
+        source_cites ="None"
+    
+    elif len(user.sources) == 0:
         response = 'No sources selected'
+        source_cites = "None"
         print(response)
-        return jsonify({'response': response})
     else:
         response, source_cites = user.response_from_llm()
+        if(response == " I don't know."):
+            response = "Please ask me medical queries only."
+            source_cites = "None"
         print(response)
         return jsonify({
             'response' : response,
             'source_cites':source_cites
-        })
+            })
+    return jsonify({'response': response})
     
 @app.route("/feedback", methods=['POST'])
 def feedback():

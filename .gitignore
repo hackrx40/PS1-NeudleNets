@@ -10,3 +10,6 @@ venv
 
 # Database
 medical_chroma_db/
+
+# Python execution files
+__pycache__
