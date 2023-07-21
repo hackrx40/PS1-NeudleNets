@@ -1,6 +1,9 @@
-# backend for Medibot
-# import required packages
+# Backend for Medibot
+# Flask imports
 from flask import Flask, jsonify, request
+from flask_cors import CORS
+
+# Langchain imports
 from langchain.embeddings import TensorflowHubEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import ConversationalRetrievalChain
@@ -9,25 +12,28 @@ from langchain.vectorstores.chroma import Chroma
 from langchain import OpenAI
 from langchain import HuggingFaceHub
 
-from flask_cors import CORS
-from dotenv import load_dotenv
-
+# ChromaDB imports
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
+# Other imports
+from dotenv import load_dotenv
+
+
 app = Flask(__name__)
 CORS(app, origins='*')
 
-print("loading environment variables")
+print("loading environment variables...")
 load_dotenv()
 
-print("loading chromadb emeddings")
+print("loading chromadb emeddings...")
 chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-print("loading langchain emeddings")
+print("loading langchain emeddings...")
 langchain_embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
 class user_Session():
+    """Class to manage one user session on the chatbot platform"""
     def __init__(self):
         self.selected_llm ="OpenAI"
         self.query =""
@@ -39,12 +45,13 @@ class user_Session():
         self.rating=5
 
     def get_llm(self):
-        
+        """Load the LLM from langchain"""
         llm = OpenAI()
         return llm
 
 
     def response_from_llm(self):
+        """Generate response from the LLM loaded"""
         llm = self.get_llm()
         self.response =""
         self.source_id = ""
@@ -52,15 +59,18 @@ class user_Session():
         self.chat_history=[]
         
         
-        qa = ConversationalRetrievalChain.from_llm(llm = llm, retriever = self.vectordb.as_retriever(), return_source_documents = True)
+        qa = ConversationalRetrievalChain.from_llm(llm = llm,
+                                    retriever = self.vectordb.as_retriever(),
+                                    return_source_documents = True)
 
-        #get the response
+        # Get the response
         result = qa({'question':self.query, "chat_history":self.chat_history})
         self.response = result['answer']
         target_document = result['source_documents'][0]
         print(target_document.metadata['source'])
-        #self.source_cites.append(target_document.metadata['url'])
-        self.source_id = self.collection.query(query_texts=target_document.page_content, n_results=1)['ids'][0][0]
+        # Self.source_cites.append(target_document.metadata['url'])
+        self.source_id = self.collection.query(query_texts=target_document.page_content,
+                                               n_results=1)['ids'][0][0]
         print(len(self.vectordb.get(where={"rating": {'$gt': 4}})['ids']))
 
         for source in self.sources:
