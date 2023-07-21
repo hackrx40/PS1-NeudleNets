@@ -1,4 +1,6 @@
 # Backend for Medibot
+
+
 # Flask imports
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -22,18 +24,22 @@ from chromadb.utils import embedding_functions
 import os
 from dotenv import load_dotenv, find_dotenv
 
-
+# Set up Flask App
 app = Flask(__name__)
 CORS(app, origins='*')
 
 print("loading environment variables...")
 _ = load_dotenv(find_dotenv()) # read local .env file
 
-print("loading chromadb emeddings...")
-chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+print("downloading chromadb emeddings from cloud, please wait...")
+chromadb_embeddings = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name="all-MiniLM-L6-v2"
+)
 
 print("loading langchain emeddings...")
-langchain_embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+langchain_embeddings = SentenceTransformerEmbeddings(
+    model_name="all-MiniLM-L6-v2"
+)
 
 print("loading AWS deployed ChromaDB Stack environment variables...")
 CHROMA_HOST = os.getenv('CHROMA_HOST')
@@ -84,11 +90,17 @@ class User_Session(Session):
     def get_llm(self):
         """Load the LLM from langchain; default LLM is OpenAI"""
         if self.selected_llm == "Google-Flan-T5-XXL":
-            llm = HuggingFaceHub(repo_id='google/flan-t5-xxl', model_kwargs={"temperature":0.1, "max_new_tokens":1180})
+            llm = HuggingFaceHub(repo_id='google/flan-t5-xxl',
+                                 model_kwargs={"temperature":0.1,
+                                               "max_new_tokens":1180})
         elif self.selected_llm == "OpenAssistant":
-            llm = HuggingFaceHub(repo_id="OpenAssistant/oasst-sft-1-pythia-12b", model_kwargs={"temperature":0.1, "max_new_tokens":768})
+            llm = HuggingFaceHub(repo_id="OpenAssistant/oasst-sft-1-pythia-12b",
+                                 model_kwargs={"temperature":0.1,
+                                               "max_new_tokens":768})
         elif self.selected_llm == "Falcon-7b-instruct":
-            llm = HuggingFaceHub(repo_id="tiiuae/falcon-7b-instruct", model_kwargs={"temperature":0.1, "max_new_tokens":256})
+            llm = HuggingFaceHub(repo_id="tiiuae/falcon-7b-instruct",
+                                 model_kwargs={"temperature":0.1,
+                                               "max_new_tokens":256})
         else:
             llm = OpenAI()
         return llm
@@ -138,12 +150,15 @@ class User_Session(Session):
 
         # Self.source_cites.append(target_document.metadata['url'])
         
-        self.source_id = self.collection.query(query_texts=target_document.page_content,
-                                               n_results=1)['ids'][0][0]
-        print(len(self.vectordb.get(where={"rating": {'$gt': 4}})['ids']))
+        self.source_id = self.collection.query(
+            query_texts=target_document.page_content, n_results=1
+        )['ids'][0][0]
+
+        # print(len(self.vectordb.get(where={"rating": {'$gt': 4}})['ids']))
 
         for source in self.sources:
-            document = self.vectordb.similarity_search(self.query,k=1 , filter={
+            document = self.vectordb.similarity_search(self.query, k=1,
+                                                       filter={
                 'source':source
             })
             self.source_cites.append(document[0].metadata['url'])
