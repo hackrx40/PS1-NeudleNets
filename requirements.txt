@@ -2,3 +2,6 @@ flask
 langchain
 chromadb
 sentence-transformers
+flask_cors
+python-dotenv
+openai
