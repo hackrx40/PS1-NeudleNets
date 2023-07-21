@@ -55,7 +55,7 @@ chroma_client_settings = Settings(
     )
 
 # Set up chroma client settings
-chroma_client = chromadb.Client(settings=chroma_client_settings)
+chroma_client = chromadb.HttpClient(host="15.206.208.236", port="8000")
 print("ChromaDB's heartbeat: ", chroma_client.heartbeat())
 
 # Set up Chroma collection
