@@ -1,0 +1,4 @@
+flask
+langchain
+chromadb
+sentence-transformers
