@@ -135,7 +135,9 @@ class User_Session(Session):
         self.response = result['answer']
         target_document = result['source_documents'][0]
         print(target_document.metadata['source'])
+
         # Self.source_cites.append(target_document.metadata['url'])
+        
         self.source_id = self.collection.query(query_texts=target_document.page_content,
                                                n_results=1)['ids'][0][0]
         print(len(self.vectordb.get(where={"rating": {'$gt': 4}})['ids']))
@@ -159,7 +161,7 @@ class User_Session(Session):
         curr_rating = doc['metadatas'][0]['rating']
 
         # Update the rating
-        new_rating = (curr_rating+self.rating) / 2
+        new_rating = (curr_rating + self.rating) / 2
         doc['metadatas'][0]['rating'] = new_rating
         
         # Create a langchain document from dictionary
@@ -167,10 +169,10 @@ class User_Session(Session):
             ids=doc['ids'][0],
             page_content=doc['documents'][0],
             metadata={
-                'source':doc['metadatas'][0]['source'],
-                'url':doc['metadatas'][0]['url'],
-                'disease':doc['metadatas'][0]['disease'],
-                'rating':doc['metadatas'][0]['rating'],
+                'source': doc['metadatas'][0]['source'],
+                'url': doc['metadatas'][0]['url'],
+                'disease': doc['metadatas'][0]['disease'],
+                'rating': doc['metadatas'][0]['rating'],
             }
         )
 
@@ -189,13 +191,40 @@ class Admin_Session(Session):
         """Convert file to document that can be added to ChromaDB"""
         # print("Inside the function")
         print(self.fileContent)
+
+        # Apply in the ChromaDB's Schema
         document = Document(
             page_content = self.fileContent,
             metadata = {
-                'source':self.fileName,
-                'url':None,
-                'disease':'Generic',
-                'rating':5
+                'source': self.fileName,
+                'url': None,
+                'disease': 'Generic',
+                'rating': 5
             }
         )
-        print("This is the document:", document)
+        # print("This is the document: ", document)
+
+        # Chunk the document
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=20
+        )
+
+        documents = text_splitter.split_documents([document])
+        print("chunks of documents created successfully")
+        
+        return documents
+    
+    def add_document_to_vectordb(self, doc):
+        """Add document to ChromaDB"""  
+        print("inside adding the document function")
+        print(doc)
+        print(doc.metadata)
+        print(type(doc.metadata))
+        self.collection.add(
+            ids=str(collection.count()+1),
+            documents=doc.page_content,
+            metadatas = doc.metadata
+        )
+        print("The count of the collection in ChromaDB: ", collection.count())
+
