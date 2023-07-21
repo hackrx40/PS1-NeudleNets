@@ -7,3 +7,6 @@ venv
 
 # Environment variables
 .env
+
+# Database
+medical_chroma_db/
