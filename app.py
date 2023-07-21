@@ -156,7 +156,7 @@ class User_Session(Session):
         doc = self.vectordb.get(ids=[self.source_id])
         
         # Get the current rating of the article
-        curr_rating =doc['metadatas'][0]['rating']
+        curr_rating = doc['metadatas'][0]['rating']
 
         # Update the rating
         new_rating = (curr_rating+self.rating) / 2
@@ -177,3 +177,25 @@ class User_Session(Session):
         # Update the vectordb
         self.vectordb.update_document(self.source_id, document)
 
+class Admin_Session(Session):
+    """Child class to manage Admin Sessions on chatbot"""
+    def __init__(self):
+        Session.__init__(self)
+        self.file = None
+        self.fileName = ""
+        self.fileContent = ""
+
+    def create_document(self):
+        """Convert file to document that can be added to ChromaDB"""
+        # print("Inside the function")
+        print(self.fileContent)
+        document = Document(
+            page_content = self.fileContent,
+            metadata = {
+                'source':self.fileName,
+                'url':None,
+                'disease':'Generic',
+                'rating':5
+            }
+        )
+        print("This is the document:", document)
